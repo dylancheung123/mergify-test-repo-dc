@@ -1,7 +1,62 @@
+queue_rules:
+  - name: default
+    conditions:
+      - and:
+        - or:
+          - check-success=server-unit-tests
+          - check-skipped=server-unit-tests
+        - or:
+          - check-success=app-unit-tests
+          - check-skipped=app-unit-tests
+        - or:
+          - check-success=server-integration-tests
+          - check-skipped=server-integration-tests
+        - check-success=app-build
+        
 pull_request_rules:
   - name: Automatic merge on approval
     conditions:
-      - "#approved-reviews-by>=0"
+      - and:
+        - or:
+          - check-success=server-unit-tests
+          - check-skipped=server-unit-tests
+        - or:
+          - check-success=app-unit-tests
+          - check-skipped=app-unit-tests
+        - or:
+          - check-success=server-integration-tests
+          - check-skipped=server-integration-tests
+        - check-success=app-build
+        - "#approved-reviews-by>=1"
+        - "#review-requested=0"
+        - "#changes-requested-reviews-by=0"
+        - base=dev
+        - label=ready-to-squash-merge
     actions:
-      merge:
-        method: squash
+      queue:
+          name: default
+          method: squash
+  - name: Convert to draft
+    conditions:
+      - "#check-failure>0"
+    actions:
+      edit:
+         draft: true
+  - name: Notify author on queue failure
+    conditions:
+      - 'check-failure=Queue: default'
+    actions:
+      comment:
+        message: >
+          Hey @{{ author }}, this pull request failed to merge and has been
+          dequeued from the merge train. If you believe your PR failed in
+          the merge train because of a flaky test, requeue it by commenting
+          with `@mergifyio requeue`.
+          More details can be found on the `Queue: default` check-run.
+  - name: Dismiss outdated reviews
+    conditions:
+      - base=dev
+    actions:
+      dismiss_reviews:
+        approved: true
+        changes_requested: true
